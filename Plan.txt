@@ -1,0 +1,29 @@
+- forms
+- password encryption
+- profile picture column png
+- darkmode
+- tabs animation
+- tabs and themed icons
+- real-world sales demo (chart,list)
+- chat
+- weather forecast
+- announcements
+- about us
+- contacts
+- setting
+- help & support
+- org. hierarchy
+- vision, mission
+- achievements
+- receipt prints
+
+To add:
+- Member table
+- Flight Delay/Refund table
+- user History log
+- admin Sale details
+- staff schedule
+- Aircraft Inspection and Repair Schedule
+- repair cost / spare parts demand
+- fuel quantity per kilometer in liter
+- fuel cost per kilometer in myr
