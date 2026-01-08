@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AirSky Booking System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'Space Mono', monospace; }
+        
+        .brand-red { color: #DC2626; }
+        .bg-brand-red { background-color: #DC2626; }
+        
+        /* Seat Styling */
+        .seat { transition: all 0.2s; }
+        .seat:hover:not(.booked):not(.selected) { transform: scale(1.1); cursor: pointer; }
+        .seat.hot-seat { border-color: #DC2626; color: #DC2626; background-color: #FEF2F2; }
+        .seat.standard-seat { border-color: #94A3B8; color: #64748B; background-color: white; }
+        .booked { background-color: #E2E8F0 !important; border-color: #CBD5E1 !important; color: #94A3B8 !important; cursor: not-allowed; }
+        .selected { background-color: #DC2626 !important; color: white !important; border-color: #B91C1C !important; }
+        
+        /* View Switching Logic */
+        .view-section { display: none; }
+        .view-section.active-view { display: block !important; animation: fadeIn 0.3s ease-out; }
+        
+        /* Step Animations */
+        .step-content { display: none; }
+        .step-content.active { display: block; animation: slideUp 0.3s ease-out; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .tear-line {
+            background-image: linear-gradient(to right, #ccc 50%, rgba(255,255,255,0) 0%);
+            background-position: bottom;
+            background-size: 10px 1px;
+            background-repeat: repeat-x;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 flex flex-col min-h-screen">
+
+    <nav class="bg-white shadow-md sticky top-0 z-50 border-t-4 border-red-600">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div onclick="navigate('home')" class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition">
+                <div class="bg-red-600 text-white w-8 h-8 flex items-center justify-center rounded-full font-bold text-xl italic">A</div>
+                <h1 class="text-2xl font-bold tracking-tighter text-slate-800">Air<span class="text-red-600">Sky</span></h1>
+            </div>
+            
+            <div class="space-x-6 text-sm font-medium text-slate-600 flex items-center">
+                <button onclick="navigate('home')" class="hover:text-red-600 transition flex items-center gap-1"><i class="fas fa-plane"></i> Flights</button>
+                <button onclick="navigate('my-bookings')" class="hover:text-red-600 transition relative flex items-center gap-1">
+                    <i class="fas fa-ticket-alt"></i> My Bookings
+                </button>
+                <div class="h-4 w-[1px] bg-slate-300 mx-1"></div>
+                
+                <div id="auth-section">
+                    <button onclick="navigate('signin')" class="text-red-600 font-semibold hover:underline">Log In / Sign Up</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="flex-grow max-w-5xl mx-auto mt-6 px-4 mb-20 w-full">
+        
+        <div id="home-view" class="view-section active-view">
+            
+            <div class="flex justify-center mb-8">
+                <div class="flex items-center space-x-2 text-sm">
+                    <div id="step1-ind" class="flex items-center gap-2 text-red-600 font-bold"><span class="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs">1</span> Search</div>
+                    <div class="w-8 h-[2px] bg-slate-300"></div>
+                    <div id="step2-ind" class="flex items-center gap-2 text-slate-400"><span class="w-6 h-6 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-xs">2</span> Add-ons</div>
+                    <div class="w-8 h-[2px] bg-slate-300"></div>
+                    <div id="step3-ind" class="flex items-center gap-2 text-slate-400"><span class="w-6 h-6 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-xs">3</span> Seats</div>
+                    <div class="w-8 h-[2px] bg-slate-300"></div>
+                    <div id="step4-ind" class="flex items-center gap-2 text-slate-400"><span class="w-6 h-6 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-xs">4</span> Pay</div>
+                </div>
+            </div>
+
+            <div id="step1" class="step-content active">
+                <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 mb-8 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-600 to-red-400"></div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                        <div class="md:col-span-3">
+                            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">From</label>
+                            <div class="relative">
+                                <i class="fas fa-plane-departure absolute left-3 top-3 text-slate-400"></i>
+                                <select id="origin" class="w-full pl-9 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none font-bold text-slate-700 bg-white">
+                                    <option value="" disabled selected>Origin</option>
+                                    <option value="KUL">Kuala Lumpur (KUL)</option>
+                                    <option value="JFK">New York (JFK)</option>
+                                    <option value="LHR">London (LHR)</option>
+                                    <option value="DXB">Dubai (DXB)</option>
+                                    <option value="SIN">Singapore (SIN)</option>
+                                    <option value="NRT">Tokyo (NRT)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="md:col-span-3">
+                            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">To</label>
+                            <div class="relative">
+                                <i class="fas fa-plane-arrival absolute left-3 top-3 text-slate-400"></i>
+                                <select id="dest" class="w-full pl-9 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none font-bold text-slate-700 bg-white">
+                                    <option value="" disabled selected>Destination</option>
+                                    <option value="KUL">Kuala Lumpur (KUL)</option>
+                                    <option value="JFK">New York (JFK)</option>
+                                    <option value="LHR">London (LHR)</option>
+                                    <option value="DXB">Dubai (DXB)</option>
+                                    <option value="SIN">Singapore (SIN)</option>
+                                    <option value="NRT">Tokyo (NRT)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="md:col-span-3">
+                            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Depart Date</label>
+                            <input type="date" id="date" value="2025-12-15" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none font-bold text-slate-700">
+                        </div>
+                        
+                        <div class="md:col-span-2">
+                             <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Guests</label>
+                             <select id="guests" class="w-full p-3 border border-slate-300 rounded-lg font-bold text-slate-700 bg-white">
+                                 <option value="1">1 Adult</option>
+                                 <option value="2">2 Adults</option>
+                                 <option value="3">3 Adults</option>
+                                 <option value="4">4 Adults</option>
+                             </select>
+                        </div>
+
+                        <div class="md:col-span-1">
+                            <button onclick="searchFlights()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg transition shadow-md flex justify-center items-center">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="results-area" class="space-y-4"></div>
+            </div>
+
+            <div id="step2" class="step-content">
+                <div class="flex items-center gap-4 mb-6">
+                    <button onclick="goToStep(1)" class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center hover:bg-slate-300 transition text-slate-600">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <h2 class="text-2xl font-bold">Customize Your Trip</h2>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="md:col-span-2 space-y-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <div class="flex items-center gap-3 mb-4">
+                                <i class="fas fa-suitcase text-2xl text-red-600"></i>
+                                <h3 class="font-bold text-lg">Checked Baggage</h3>
+                            </div>
+                            <div class="space-y-3">
+                                <label class="flex justify-between items-center p-3 border rounded-lg cursor-pointer hover:border-red-500 transition">
+                                    <div class="flex items-center gap-3">
+                                        <input type="radio" name="baggage" value="0" checked onchange="refreshCalculations()" class="accent-red-600 w-4 h-4">
+                                        <span>No Checked Baggage</span>
+                                    </div>
+                                    <span class="font-bold text-slate-500">Free</span>
+                                </label>
+                                <label class="flex justify-between items-center p-3 border rounded-lg cursor-pointer hover:border-red-500 transition">
+                                    <div class="flex items-center gap-3">
+                                        <input type="radio" name="baggage" value="40" onchange="refreshCalculations()" class="accent-red-600 w-4 h-4">
+                                        <span>20kg Baggage</span>
+                                    </div>
+                                    <span class="font-bold text-slate-800">+RM 40</span>
+                                </label>
+                                <label class="flex justify-between items-center p-3 border rounded-lg cursor-pointer hover:border-red-500 transition">
+                                    <div class="flex items-center gap-3">
+                                        <input type="radio" name="baggage" value="60" onchange="refreshCalculations()" class="accent-red-600 w-4 h-4">
+                                        <span>25kg Baggage</span>
+                                    </div>
+                                    <span class="font-bold text-slate-800">+RM 60</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <div class="flex items-center gap-3 mb-4">
+                                <i class="fas fa-utensils text-2xl text-red-600"></i>
+                                <h3 class="font-bold text-lg">In-flight Meal</h3>
+                            </div>
+                            <div class="space-y-3">
+                                <label class="flex justify-between items-center p-3 border rounded-lg cursor-pointer hover:border-red-500 transition">
+                                    <div class="flex items-center gap-3">
+                                        <input type="checkbox" id="meal-check" onchange="refreshCalculations()" class="accent-red-600 w-4 h-4">
+                                        <div class="flex flex-col">
+                                            <span class="font-medium">Pak Nasser's Nasi Lemak</span>
+                                            <span class="text-xs text-slate-500">Traditional favorite with chili sambal</span>
+                                        </div>
+                                    </div>
+                                    <span class="font-bold text-slate-800">+RM 15</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-1">
+                        <div class="bg-white p-5 rounded-xl border border-slate-200 sticky top-24">
+                            <h3 class="font-bold text-lg mb-4 border-b pb-2">Booking Summary</h3>
+                            <div id="addon-flight-info" class="text-sm mb-4"></div>
+                            
+                            <div class="space-y-2 text-sm text-slate-600 mb-4">
+                                <div class="flex justify-between"><span>Base Fare</span><span id="addon-base-price" class="font-medium">-</span></div>
+                                <div class="flex justify-between"><span>Baggage</span><span id="addon-bag-price" class="font-medium">RM 0</span></div>
+                                <div class="flex justify-between"><span>Meal</span><span id="addon-meal-price" class="font-medium">RM 0</span></div>
+                            </div>
+                            
+                            <div class="flex justify-between items-end border-t pt-3 mb-4">
+                                <span class="font-bold text-slate-800">Total</span>
+                                <span id="addon-total-price" class="font-bold text-2xl text-red-600">-</span>
+                            </div>
+                            <button onclick="goToStep(3)" class="w-full bg-red-600 text-white font-bold py-3 rounded-lg hover:bg-red-700 transition">
+                                Select Seats
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="step3" class="step-content">
+                <div class="flex items-center gap-4 mb-6">
+                    <button onclick="goToStep(2)" class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center hover:bg-slate-300 transition text-slate-600">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <h2 class="text-2xl font-bold">Pick A Seat</h2>
+                </div>
+
+                <div class="flex flex-col md:flex-row gap-8">
+                    <div class="flex-1 bg-white p-1 rounded-3xl shadow-xl border border-slate-200 max-w-md mx-auto relative">
+                        <div class="bg-slate-100 h-24 rounded-t-3xl border-b flex items-end justify-center pb-2 mb-4 relative overflow-hidden">
+                             <div class="absolute top-4 w-16 h-1 bg-slate-300 rounded-full"></div>
+                             <span class="text-xs text-slate-400 font-mono">COCKPIT</span>
+                        </div>
+
+                        <div class="px-6 pb-12 max-h-[500px] overflow-y-auto">
+                            <div class="flex justify-between mb-4 px-2 text-xs font-bold text-slate-400">
+                                <span>A</span><span>B</span><span>C</span>
+                                <span class="w-4 text-center"></span>
+                                <span>D</span><span>E</span><span>F</span>
+                            </div>
+                            <div id="seat-map" class="grid grid-cols-7 gap-y-3 gap-x-2"></div>
+                        </div>
+                    </div>
+
+                    <div class="w-full md:w-1/3 space-y-6">
+                        <div class="bg-white p-4 rounded-xl border border-slate-200">
+                            <h4 class="font-bold text-sm mb-3">Seat Legend</h4>
+                            <div class="space-y-3 text-sm">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2"><div class="w-6 h-6 rounded border border-red-600 bg-red-50"></div> <span>Hot Seat (Rows 1-3)</span></div>
+                                    <span class="font-bold text-red-600">+RM 25</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2"><div class="w-6 h-6 rounded border border-slate-300 bg-white"></div> <span>Standard Seat</span></div>
+                                    <span class="font-bold text-slate-600">Free</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-slate-400"><div class="w-6 h-6 rounded bg-slate-200 border border-slate-300"></div> <span>Occupied</span></div>
+                                <div class="flex items-center gap-2 text-blue-600 font-bold"><div class="w-6 h-6 rounded bg-red-600 border border-red-700"></div> <span>Selected</span></div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-lg">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-slate-600">Current Total</span>
+                                <span id="seat-running-total" class="font-bold text-xl text-red-600">RM 0</span>
+                            </div>
+                            <p id="selected-seat-display" class="text-sm text-right text-slate-500 mb-4">No seat selected</p>
+                            <button id="btn-confirm-seat" onclick="goToStep(4)" disabled class="w-full bg-slate-300 text-white font-bold py-3 rounded-lg transition disabled:cursor-not-allowed">
+                                Continue to Payment
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="step4" class="step-content">
+                <div class="flex items-center gap-4 mb-6">
+                    <button onclick="goToStep(3)" class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center hover:bg-slate-300 transition text-slate-600">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <h2 class="text-2xl font-bold">Payment</h2>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="md:col-span-2 space-y-6">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i class="fas fa-user-circle text-red-600"></i> Contact Details</h3>
+                            <div class="mb-4 bg-blue-50 p-3 rounded text-sm text-blue-800 hidden" id="autofill-notice">
+                                <i class="fas fa-check-circle mr-1"></i> Logged in as <span class="font-bold" id="autofill-name"></span>
+                            </div>
+                            <form id="booking-form" class="space-y-4">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div><label class="block text-xs font-bold text-slate-500 mb-1">First Name</label><input type="text" id="p_name" required class="w-full p-3 border border-slate-300 rounded-lg"></div>
+                                    <div><label class="block text-xs font-bold text-slate-500 mb-1">Last Name</label><input type="text" id="p_last_name" required class="w-full p-3 border border-slate-300 rounded-lg"></div>
+                                </div>
+                                <div><label class="block text-xs font-bold text-slate-500 mb-1">Email</label><input type="email" id="p_email" required class="w-full p-3 border border-slate-300 rounded-lg"></div>
+                                <div><label class="block text-xs font-bold text-slate-500 mb-1">Mobile No</label><input type="text" id="p_phone" required class="w-full p-3 border border-slate-300 rounded-lg"></div>
+                            </form>
+                        </div>
+                        
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i class="fas fa-wallet text-red-600"></i> Payment Method</h3>
+                            
+                            <div class="flex flex-wrap gap-2 mb-6 p-1 bg-slate-100 rounded-lg">
+                                <button onclick="selectPayment('card')" id="tab-card" class="flex-1 py-2 rounded-md font-bold text-sm bg-white text-red-600 shadow-sm border border-slate-200 transition">Card</button>
+                                <button onclick="selectPayment('banking')" id="tab-banking" class="flex-1 py-2 rounded-md font-bold text-sm text-slate-500 hover:text-slate-700 transition">FPX</button>
+                                <button onclick="selectPayment('ewallet')" id="tab-ewallet" class="flex-1 py-2 rounded-md font-bold text-sm text-slate-500 hover:text-slate-700 transition">E-Wallet</button>
+                                <button onclick="selectPayment('bnpl')" id="tab-bnpl" class="flex-1 py-2 rounded-md font-bold text-sm text-slate-500 hover:text-slate-700 transition">PayLater</button>
+                            </div>
+
+                            <div id="pay-card" class="space-y-4">
+                                <div><label class="block text-xs font-bold text-slate-500 mb-1">Card Number</label><input type="text" placeholder="0000 0000 0000 0000" class="w-full p-3 border border-slate-300 rounded-lg"></div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div><label class="block text-xs font-bold text-slate-500 mb-1">Expiry</label><input type="text" placeholder="MM/YY" class="w-full p-3 border border-slate-300 rounded-lg"></div>
+                                    <div><label class="block text-xs font-bold text-slate-500 mb-1">CVV</label><input type="text" placeholder="123" class="w-full p-3 border border-slate-300 rounded-lg"></div>
+                                </div>
+                            </div>
+
+                            <div id="pay-banking" class="hidden space-y-4">
+                                <label class="block text-xs font-bold text-slate-500 mb-1">Select Bank</label>
+                                <select class="w-full p-3 border border-slate-300 rounded-lg bg-white">
+                                    <option>Maybank2u</option>
+                                    <option>CIMB Clicks</option>
+                                    <option>Public Bank</option>
+                                    <option>RHB Now</option>
+                                </select>
+                            </div>
+
+                            <div id="pay-ewallet" class="hidden space-y-4">
+                                <label class="block text-xs font-bold text-slate-500 mb-1">Select E-Wallet</label>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <label class="border p-3 rounded-lg cursor-pointer hover:border-red-500 flex items-center gap-3"><input type="radio" name="wallet" class="accent-red-600" checked> <span>Touch 'n Go</span></label>
+                                    <label class="border p-3 rounded-lg cursor-pointer hover:border-red-500 flex items-center gap-3"><input type="radio" name="wallet" class="accent-red-600"> <span>GrabPay</span></label>
+                                </div>
+                            </div>
+
+                            <div id="pay-bnpl" class="hidden space-y-4">
+                                <label class="block text-xs font-bold text-slate-500 mb-1">Buy Now, Pay Later</label>
+                                <div class="grid grid-cols-1 gap-4">
+                                    <label class="border p-4 rounded-xl cursor-pointer hover:border-red-500 flex items-center justify-between">
+                                        <div class="flex items-center gap-3"><input type="radio" name="bnpl" class="accent-red-600" checked><div><div class="font-bold text-slate-800">Atome</div><div class="text-xs text-slate-500">3 easy payments, 0% interest</div></div></div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-1">
+                        <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 sticky top-24">
+                            <h3 class="font-bold text-lg mb-4">Total Amount</h3>
+                            <div class="space-y-2 text-sm text-slate-600 border-b pb-4 mb-4">
+                                <div class="flex justify-between"><span>Base Fare (x<span id="pax-count-display">1</span>)</span><span id="final-base-price" class="font-medium">RM 0</span></div>
+                                <div class="flex justify-between"><span>Add-ons (Bag/Meal)</span><span id="final-addons-price" class="font-medium">RM 0</span></div>
+                                <div class="flex justify-between"><span>Seat Selection</span><span id="final-seat-price" class="font-medium">RM 0</span></div>
+                                <div class="flex justify-between"><span>Taxes & Fees</span><span id="final-tax-price" class="font-medium">RM 15.00</span></div>
+                            </div>
+                            <div class="flex justify-between items-end mb-6">
+                                <span class="font-bold text-slate-800 text-lg">Total</span>
+                                <span id="final-total-price" class="font-bold text-3xl text-red-600">RM 0</span>
+                            </div>
+                            <button id="btn-pay-now" onclick="processBooking(event)" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-red-200 transition text-lg">Pay Now <i class="fas fa-lock ml-2 text-sm"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="success-view" class="hidden max-w-lg mx-auto mt-10">
+                <div class="text-center mb-8">
+                    <div class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl shadow-inner"><i class="fas fa-check"></i></div>
+                    <h2 class="text-3xl font-bold text-slate-800 mb-2">Booking Confirmed!</h2>
+                    <p class="text-slate-500">Your boarding pass is ready.</p>
+                </div>
+                <div class="bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200 relative">
+                    <div class="bg-red-600 p-6 text-white flex justify-between items-center">
+                        <div class="flex items-center gap-2"><div class="bg-white text-red-600 w-8 h-8 flex items-center justify-center rounded-full font-bold text-xl italic">A</div><span class="font-bold text-xl tracking-tighter italic">AirSky</span></div>
+                        <span class="font-mono text-xs border border-white/30 px-2 py-1 rounded uppercase">Boarding Pass</span>
+                    </div>
+                    <div class="p-6 pb-8 bg-white">
+                        <div class="flex justify-between items-center mb-6">
+                            <div><div class="text-4xl font-bold text-slate-800" id="bp-origin">KUL</div><div class="text-xs text-slate-400 font-bold uppercase">Origin</div></div>
+                            <div class="flex-1 px-4 text-center"><div class="text-red-600 text-2xl"><i class="fas fa-plane"></i></div></div>
+                            <div class="text-right"><div class="text-4xl font-bold text-slate-800" id="bp-dest">SIN</div><div class="text-xs text-slate-400 font-bold uppercase">Destination</div></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-y-6 gap-x-4 mb-6">
+                            <div><div class="text-xs text-slate-400 font-bold uppercase mb-1">Passenger</div><div class="font-bold text-slate-800 text-lg truncate" id="bp-name">-</div></div>
+                            <div class="text-right"><div class="text-xs text-slate-400 font-bold uppercase mb-1">Flight</div><div class="font-bold text-slate-800 text-lg" id="bp-flight">-</div></div>
+                            <div><div class="text-xs text-slate-400 font-bold uppercase mb-1">Date</div><div class="font-bold text-slate-800 text-lg" id="bp-date">-</div></div>
+                            <div class="text-right"><div class="text-xs text-slate-400 font-bold uppercase mb-1">Time</div><div class="font-bold text-slate-800 text-lg" id="bp-time">-</div></div>
+                        </div>
+                        <div class="bg-slate-50 rounded-xl p-4 flex justify-between items-center border border-slate-100">
+                             <div><div class="text-xs text-slate-400 font-bold uppercase mb-1">Gate</div><div class="font-bold text-slate-800 text-xl">H2</div></div>
+                             <div><div class="text-xs text-slate-400 font-bold uppercase mb-1">Zone</div><div class="font-bold text-slate-800 text-xl">2</div></div>
+                             <div class="text-right"><div class="text-xs text-slate-400 font-bold uppercase mb-1">Seat</div><div class="font-bold text-red-600 text-3xl" id="bp-seat">-</div></div>
+                        </div>
+                    </div>
+                    <div class="h-4 tear-line bg-white relative z-10 -mt-2"></div>
+                    <div class="bg-slate-50 p-6 flex justify-between items-center border-t border-dashed border-slate-300">
+                        <div><div class="text-xs text-slate-400 font-bold uppercase mb-1">Booking Ref</div><div class="font-mono text-xl font-bold text-slate-800 tracking-wider" id="bp-ref">-</div></div>
+                        <div class="w-16 h-16 bg-slate-800 rounded-lg flex items-center justify-center text-white text-2xl"><i class="fas fa-qrcode"></i></div>
+                    </div>
+                </div>
+                <div class="mt-8 flex justify-center space-x-4">
+                    <button onclick="location.reload()" class="text-slate-500 font-bold hover:text-slate-800">Book Another</button>
+                    <button onclick="navigate('my-bookings')" class="text-red-600 font-bold hover:underline">My Bookings</button>
+                </div>
+                <div class="h-20"></div>
+            </div>
+        </div>
+
+        <div id="signin-view" class="view-section max-w-md mx-auto">
+            <div class="bg-white p-8 rounded-2xl shadow-xl border-t-4 border-red-600">
+                <h2 id="auth-title" class="text-2xl font-bold mb-6">Welcome Back</h2>
+                
+                <form onsubmit="handleAuth(event)" class="space-y-4">
+                    <div id="signup-name-group" class="hidden">
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Full Name</label>
+                        <input type="text" id="auth-name" class="w-full p-3 border border-slate-300 rounded-lg">
+                    </div>
+
+                    <div><label class="block text-sm font-bold text-slate-700 mb-1">Email</label><input type="email" id="login-email" required class="w-full p-3 border border-slate-300 rounded-lg"></div>
+                    <div><label class="block text-sm font-bold text-slate-700 mb-1">Password</label><input type="password" id="login-pass" required class="w-full p-3 border border-slate-300 rounded-lg"></div>
+                    
+                    <button type="submit" id="auth-submit-btn" class="w-full bg-red-600 text-white font-bold py-3 rounded-lg hover:bg-red-700 transition">Log In</button>
+                </form>
+
+                <div class="mt-6 text-center text-sm text-slate-500">
+                    <span id="auth-switch-text">Don't have an account? </span>
+                    <button onclick="toggleAuthMode()" id="auth-switch-btn" class="text-red-600 font-bold hover:underline">Sign Up</button>
+                </div>
+            </div>
+            <button onclick="navigate('home')" class="w-full mt-4 text-slate-400 font-bold hover:text-slate-600">Cancel</button>
+        </div>
+
+        <div id="my-bookings-view" class="view-section">
+            <div class="flex items-center gap-4 mb-6">
+                <button onclick="navigate('home')" class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center hover:bg-slate-300 transition text-slate-600">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h2 class="text-3xl font-bold">My Bookings</h2>
+            </div>
+            <div id="bookings-list" class="space-y-4"></div>
+            <div id="no-bookings" class="hidden text-center py-16 bg-white rounded-3xl border border-dashed border-slate-300">
+                <h3 class="text-xl font-bold text-slate-700">No upcoming trips</h3>
+                <button onclick="navigate('home')" class="bg-red-600 text-white px-8 py-3 mt-4 rounded-full font-bold">Search Flights</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let state = {
+            user: null, flights: [], selectedFlight: null, fareType: 'standard',
+            selectedSeat: null, passengers: 1, addons: { baggage: 0, meal: false },
+            paymentMethod: 'card', isSignup: false
+        };
+
+        const USE_MOCK_API = false;
+
+        async function apiCall(url, options = {}) {
+            if(options.method === 'POST') options.headers = { ...options.headers, 'Content-Type': 'application/json' };
+            try {
+                const res = await fetch(url, options);
+                return await res.json();
+            } catch (error) { console.error("API Error:", error); return []; }
+        }
+
+        // --- NAVIGATION LOGIC ---
+        function navigate(viewName) {
+            // 1. Hide all view sections
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active-view'));
+            
+            // 2. Logic for My Bookings (Protected Route)
+            if (viewName === 'my-bookings') {
+                if (!state.user) {
+                    // Redirect to login if not authenticated
+                    document.getElementById('signin-view').classList.add('active-view');
+                    return;
+                } else {
+                    document.getElementById('my-bookings-view').classList.add('active-view');
+                    renderBookings();
+                    return;
+                }
+            }
+
+            // 3. Show the requested view
+            const target = document.getElementById(viewName + '-view');
+            if (target) {
+                target.classList.add('active-view');
+            } else {
+                console.error("View not found:", viewName);
+            }
+        }
+
+        // --- AUTH LOGIC (Toggle & Submit) ---
+        function toggleAuthMode() {
+            state.isSignup = !state.isSignup;
+            const title = document.getElementById('auth-title');
+            const btn = document.getElementById('auth-submit-btn');
+            const text = document.getElementById('auth-switch-text');
+            const switchBtn = document.getElementById('auth-switch-btn');
+            const nameGroup = document.getElementById('signup-name-group');
+
+            if (state.isSignup) {
+                title.innerText = "Create Account";
+                btn.innerText = "Sign Up";
+                text.innerText = "Already have an account? ";
+                switchBtn.innerText = "Log In";
+                nameGroup.classList.remove('hidden');
+                document.getElementById('auth-name').required = true;
+            } else {
+                title.innerText = "Welcome Back";
+                btn.innerText = "Log In";
+                text.innerText = "Don't have an account? ";
+                switchBtn.innerText = "Sign Up";
+                nameGroup.classList.add('hidden');
+                document.getElementById('auth-name').required = false;
+            }
+        }
+
+        async function handleAuth(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-pass').value;
+            const name = document.getElementById('auth-name').value;
+            
+            const action = state.isSignup ? 'signup' : 'login';
+            const payload = { email: email, password: pass };
+            if(state.isSignup) payload.name = name;
+
+            const res = await apiCall(`api.php?action=${action}`, { 
+                method: 'POST', 
+                body: JSON.stringify(payload) 
+            });
+
+            if(res && res.status === 'success') {
+                if(state.isSignup) {
+                    alert("Account created successfully! Please log in.");
+                    toggleAuthMode();
+                } else {
+                    state.user = res.user;
+                    document.getElementById('auth-section').innerHTML = `<span class="font-bold text-red-600 mr-4">Hi, ${state.user.name.split(' ')[0]}</span> <button onclick="location.reload()" class="text-sm text-slate-400">Logout</button>`;
+                    
+                    // Auto-fill checkout details
+                    document.getElementById('p_name').value = state.user.name.split(' ')[0];
+                    if(state.user.name.split(' ')[1]) document.getElementById('p_last_name').value = state.user.name.split(' ').slice(1).join(' ');
+                    document.getElementById('p_email').value = state.user.email;
+                    
+                    document.getElementById('autofill-notice').classList.remove('hidden');
+                    document.getElementById('autofill-name').innerText = state.user.name;
+                    navigate('home');
+                }
+            } else {
+                alert(res.message || "Authentication failed");
+            }
+        }
+
+        // --- BOOKING LOGIC ---
+        function calculateTripCosts() {
+            if (!state.selectedFlight) return { total: 0 };
+            let singleBaseFare = parseFloat(state.selectedFlight.base_price);
+            if (state.fareType === 'flex') singleBaseFare = singleBaseFare * 1.4;
+            const totalBase = singleBaseFare * state.passengers;
+            let bagPrice = state.addons.baggage;
+            let mealPrice = state.addons.meal ? 15 : 0;
+            if (state.fareType === 'flex') { if (bagPrice === 40) bagPrice = 0; if (mealPrice === 15) mealPrice = 0; }
+            const seatPrice = state.selectedSeat ? state.selectedSeat.price : 0;
+            const taxes = 15.00;
+            const grandTotal = totalBase + bagPrice + mealPrice + seatPrice + taxes;
+            return { totalBase, bagPrice, mealPrice, seatPrice, taxes, grandTotal };
+        }
+
+        function refreshCalculations() {
+            const bagVal = document.querySelector('input[name="baggage"]:checked').value;
+            const mealChecked = document.getElementById('meal-check').checked;
+            state.addons.baggage = parseInt(bagVal);
+            state.addons.meal = mealChecked;
+            const costs = calculateTripCosts();
+            if(document.getElementById('addon-base-price')) {
+                 document.getElementById('addon-base-price').innerText = `RM ${costs.totalBase.toFixed(2)}`;
+                 document.getElementById('addon-bag-price').innerText = costs.bagPrice === 0 && state.addons.baggage > 0 ? 'Included' : `RM ${costs.bagPrice}`;
+                 document.getElementById('addon-meal-price').innerText = costs.mealPrice === 0 && state.addons.meal ? 'Included' : `RM ${costs.mealPrice}`;
+                 document.getElementById('addon-total-price').innerText = `RM ${costs.grandTotal.toFixed(2)}`;
+                 document.getElementById('seat-running-total').innerText = `RM ${costs.grandTotal.toFixed(2)}`;
+            }
+            document.getElementById('pax-count-display').innerText = state.passengers;
+            document.getElementById('final-base-price').innerText = `RM ${costs.totalBase.toFixed(2)}`;
+            document.getElementById('final-addons-price').innerText = `RM ${(costs.bagPrice + costs.mealPrice).toFixed(2)}`;
+            document.getElementById('final-seat-price').innerText = `RM ${costs.seatPrice.toFixed(2)}`;
+            document.getElementById('final-total-price').innerText = `RM ${costs.grandTotal.toFixed(2)}`;
+        }
+
+        async function searchFlights() {
+            const origin = document.getElementById('origin').value;
+            const dest = document.getElementById('dest').value;
+            state.passengers = parseInt(document.getElementById('guests').value);
+            if(!origin || !dest) return alert("Please select Origin and Destination");
+            const area = document.getElementById('results-area');
+            area.innerHTML = '<div class="text-center py-8"><i class="fas fa-circle-notch fa-spin text-red-600 text-3xl"></i></div>';
+            const flights = await apiCall(`api.php?action=search&origin=${origin}&dest=${dest}`);
+            state.flights = flights;
+            area.innerHTML = '';
+            if(!flights || flights.length === 0) { area.innerHTML = '<div class="bg-red-50 text-red-600 p-4 rounded-lg text-center">No flights found. Try different dates/locations.</div>'; return; }
+            flights.forEach(f => {
+                const div = document.createElement('div');
+                div.className = "bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden hover:shadow-lg transition mb-4";
+                div.innerHTML = `
+                    <div class="p-5 flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div class="flex items-center gap-6 flex-1">
+                            <div class="text-center"><div class="text-xl font-bold text-slate-800">${f.departure_time.split(' ')[1].substring(0,5)}</div><div class="text-sm text-slate-500 font-bold">${f.origin_code}</div></div>
+                            <div class="flex flex-col items-center w-32"><i class="fas fa-plane text-red-600"></i><span class="text-xs text-green-600 font-medium">Direct</span></div>
+                            <div class="text-center"><div class="text-xl font-bold text-slate-800">${f.arrival_time.split(' ')[1].substring(0,5)}</div><div class="text-sm text-slate-500 font-bold">${f.dest_code}</div></div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-red-600 mb-2">RM ${f.base_price}</div>
+                            <button onclick="toggleFares(${f.flight_id})" class="bg-red-600 text-white px-6 py-2 rounded-lg font-bold text-sm">Select</button>
+                        </div>
+                    </div>
+                    <div id="fares-${f.flight_id}" class="hidden bg-slate-50 p-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div onclick="selectFlight(${f.flight_id}, 'standard')" class="bg-white p-4 rounded-lg border hover:border-red-500 cursor-pointer shadow-sm"><h4 class="font-bold text-slate-700">Low Fare</h4><div class="font-bold text-lg text-slate-800">RM ${f.base_price}</div></div>
+                        <div onclick="selectFlight(${f.flight_id}, 'flex')" class="bg-white p-4 rounded-lg border hover:border-red-500 cursor-pointer shadow-sm relative"><div class="absolute top-0 right-0 bg-yellow-400 text-xs font-bold px-2 py-1">RECOMMENDED</div><h4 class="font-bold text-slate-700">Premium Flex</h4><div class="font-bold text-lg text-slate-800">RM ${(f.base_price * 1.4).toFixed(2)}</div></div>
+                    </div>`;
+                area.appendChild(div);
+            });
+        }
+
+        function toggleFares(id) {
+            document.querySelectorAll('[id^="fares-"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`fares-${id}`).classList.remove('hidden');
+        }
+
+        function selectFlight(id, type) {
+            state.selectedFlight = state.flights.find(f => f.flight_id == id);
+            state.fareType = type;
+            state.selectedSeat = null;
+            if(type === 'flex') { document.querySelector('input[name="baggage"][value="40"]').checked = true; document.getElementById('meal-check').checked = true; } 
+            else { document.querySelector('input[name="baggage"][value="0"]').checked = true; document.getElementById('meal-check').checked = false; }
+            refreshCalculations();
+            document.getElementById('addon-flight-info').innerHTML = `<div class="flex justify-between font-bold"><span>${state.selectedFlight.origin_code} <i class="fas fa-arrow-right text-xs"></i> ${state.selectedFlight.dest_code}</span> <span>${state.selectedFlight.flight_number}</span></div><div class="text-xs text-slate-500">${state.passengers} Guest(s) • ${state.fareType === 'flex' ? 'Premium Flex' : 'Low Fare'}</div>`;
+            goToStep(2);
+        }
+
+        function selectPayment(method) {
+            state.paymentMethod = method;
+            const tabs = ['card', 'banking', 'ewallet', 'bnpl'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                if (t === method) { btn.classList.remove('text-slate-500', 'bg-transparent'); btn.classList.add('bg-white', 'text-red-600', 'shadow-sm', 'border-slate-200'); } 
+                else { btn.classList.add('text-slate-500', 'bg-transparent'); btn.classList.remove('bg-white', 'text-red-600', 'shadow-sm', 'border-slate-200'); }
+                document.getElementById(`pay-${t}`).classList.add('hidden');
+            });
+            document.getElementById(`pay-${method}`).classList.remove('hidden');
+        }
+
+        function renderSeats() {
+            const map = document.getElementById('seat-map');
+            map.innerHTML = '';
+            for(let i=1; i<=60; i++) {
+                const row = Math.ceil(i/6);
+                const col = (i-1)%6;
+                const letter = ['A','B','C','D','E','F'][col];
+                const isHot = row <= 3;
+                if(col === 3) { const gap = document.createElement('div'); gap.className = "w-4 flex items-center justify-center text-xs font-bold text-slate-300"; gap.innerText = row; map.appendChild(gap); }
+                const seat = document.createElement('div');
+                let classes = "w-10 h-10 rounded-lg border-2 flex items-center justify-center text-xs font-bold seat cursor-pointer transition ";
+                if(Math.random() < 0.25) classes += "booked"; else { classes += isHot ? "hot-seat" : "standard-seat"; seat.onclick = () => selectSeat(i, `${row}${letter}`, isHot ? 25 : 0); }
+                seat.className = classes; seat.innerText = letter; seat.id = `seat-${i}`;
+                map.appendChild(seat);
+            }
+        }
+
+        function selectSeat(id, label, price) {
+            if(state.selectedSeat) {
+                const old = document.getElementById(`seat-${state.selectedSeat.id}`);
+                if(old) { old.classList.remove('selected'); old.classList.add(state.selectedSeat.price > 0 ? 'hot-seat' : 'standard-seat'); }
+            }
+            state.selectedSeat = { id, label, price };
+            const el = document.getElementById(`seat-${id}`);
+            el.classList.remove('hot-seat', 'standard-seat'); el.classList.add('selected');
+            document.getElementById('selected-seat-display').innerText = `${label} (${price > 0 ? 'Hot Seat +RM 25' : 'Standard +RM 0'})`;
+            document.getElementById('selected-seat-display').classList.add('font-bold', 'text-slate-800');
+            document.getElementById('btn-confirm-seat').disabled = false;
+            document.getElementById('btn-confirm-seat').classList.remove('bg-slate-300', 'cursor-not-allowed');
+            document.getElementById('btn-confirm-seat').classList.add('bg-red-600', 'hover:bg-red-700');
+            refreshCalculations();
+        }
+
+        function goToStep(step) {
+            document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(`step${step}`).classList.add('active');
+            for(let i=1; i<=4; i++) {
+                const ind = document.getElementById(`step${i}-ind`);
+                if(i <= step) { ind.classList.remove('text-slate-400'); ind.classList.add('text-red-600', 'font-bold'); ind.querySelector('span').classList.remove('bg-slate-200', 'text-slate-500'); ind.querySelector('span').classList.add('bg-red-600', 'text-white'); } 
+                else { ind.classList.remove('text-red-600', 'font-bold'); ind.classList.add('text-slate-400'); ind.querySelector('span').classList.remove('bg-red-600', 'text-white'); ind.querySelector('span').classList.add('bg-slate-200', 'text-slate-500'); }
+            }
+            if(step === 3) renderSeats();
+            if(step === 4) refreshCalculations();
+        }
+
+        async function processBooking(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-pay-now');
+            const oldText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            btn.disabled = true;
+            const name = document.getElementById('p_name').value + ' ' + document.getElementById('p_last_name').value;
+            const email = document.getElementById('p_email').value;
+            let rawTotal = document.getElementById('final-total-price').innerText;
+            rawTotal = rawTotal.replace('RM ', '').trim();
+            const payload = { flight_id: state.selectedFlight.flight_id, email: email, name: name, seat: state.selectedSeat.label, total: rawTotal };
+            try {
+                const res = await apiCall('api.php?action=book', { method: 'POST', body: JSON.stringify(payload) });
+                if (res.status === 'success') {
+                    document.getElementById('bp-origin').innerText = state.selectedFlight.origin_code;
+                    document.getElementById('bp-dest').innerText = state.selectedFlight.dest_code;
+                    document.getElementById('bp-name').innerText = name.toUpperCase();
+                    document.getElementById('bp-flight').innerText = state.selectedFlight.flight_number;
+                    const d = new Date(state.selectedFlight.departure_time);
+                    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+                    document.getElementById('bp-date').innerText = `${d.getDate()} ${months[d.getMonth()]}`;
+                    document.getElementById('bp-time').innerText = d.toTimeString().substr(0,5);
+                    document.getElementById('bp-seat').innerText = state.selectedSeat.label;
+                    document.getElementById('bp-ref').innerText = res.booking_ref;
+                    document.getElementById('step4').classList.remove('active');
+                    document.getElementById('success-view').classList.remove('hidden');
+                } else { alert("Booking failed: " + res.message); }
+            } catch(err) { console.error(err); alert("An unexpected error occurred."); } 
+            finally { btn.innerHTML = oldText; btn.disabled = false; }
+        }
+
+        async function renderBookings() {
+             const list = document.getElementById('bookings-list');
+             const empty = document.getElementById('no-bookings');
+             list.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin text-red-600"></i></div>';
+             const bookings = await apiCall(`api.php?action=get_bookings&email=${state.user.email}`);
+             list.innerHTML = '';
+             if(!bookings || bookings.length === 0) return empty.classList.remove('hidden');
+             empty.classList.add('hidden');
+             bookings.reverse().forEach(b => {
+                const item = document.createElement('div');
+                item.className = "bg-white p-6 rounded-xl shadow-md border-l-4 border-red-600 flex justify-between items-center";
+                item.innerHTML = `<div><div class="text-xs font-bold text-slate-400 uppercase mb-1">Ref</div><div class="text-xl font-bold text-slate-800 mb-1 font-mono">${b.booking_ref}</div><div class="text-sm">${b.origin} to ${b.dest}</div></div><div class="text-right"><div class="inline-block px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full mb-1">Confirmed</div><div class="text-sm text-slate-500">Seat ${b.seat}</div></div>`;
+                list.appendChild(item);
+             });
+        }
+    </script>
+</body>
+</html>
